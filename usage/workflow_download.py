@@ -1,9 +1,10 @@
 from jmcomic import *
-from jmcomic import JmcomicUI
+from jmcomic.utils import str_to_set   # 补上这个工具函数，避免报错
+# 注意：原 from jmcomic.cl import JmcomicUI 已被移除
 
 # 下方填入你要下载的本子的id，一行一个，每行的首尾可以有空白字符
 jm_albums = '''
-145632
+1456362
 
 
 '''
@@ -44,12 +45,20 @@ def main():
     album_id_set = get_id_set('JM_ALBUM_IDS', jm_albums)
     photo_id_set = get_id_set('JM_PHOTO_IDS', jm_photos)
 
-    helper = JmcomicUI()
-    helper.album_id_list = list(album_id_set)
-    helper.photo_id_list = list(photo_id_set)
-
+    # 获取配置手册
     option = get_option()
-    helper.run(option)
+
+    # 直接使用 option 下载所有整本漫画（绕过 UI）
+    for album_id in album_id_set:
+        print(f'正在下载本子：{album_id}')
+        option.download_album(album_id)
+
+    # 下载所有单独章节
+    for photo_id in photo_id_set:
+        print(f'正在下载章节：{photo_id}')
+        option.download_photo(photo_id)
+
+    # 执行收尾插件（如合并PDF）
     option.call_all_plugin('after_download')
 
 
