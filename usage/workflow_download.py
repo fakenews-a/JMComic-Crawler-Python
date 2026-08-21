@@ -1,6 +1,5 @@
 from jmcomic import *
-from jmcomic.utils import str_to_set   # 补上这个工具函数，避免报错
-# 注意：原 from jmcomic.cl import JmcomicUI 已被移除
+import re  # 用正则表达式提取数字
 
 # 下方填入你要下载的本子的id，一行一个，每行的首尾可以有空白字符
 jm_albums = '''
@@ -30,14 +29,24 @@ def env(name, default, trim=('[]', '""', "''")):
     return value
 
 
+def parse_ids_to_set(text):
+    """
+    从文本中提取所有纯数字ID，返回集合
+    """
+    if not text:
+        return set()
+    # 用正则找出所有连续的数字
+    numbers = re.findall(r'\d+', text)
+    return set(numbers)
+
+
 def get_id_set(env_name, given):
     aid_set = set()
     for text in [
         given,
         (env(env_name, '')).replace('-', '\n'),
     ]:
-        aid_set.update(str_to_set(text))
-
+        aid_set.update(parse_ids_to_set(text))
     return aid_set
 
 
@@ -48,7 +57,7 @@ def main():
     # 获取配置手册
     option = get_option()
 
-    # 直接使用 option 下载所有整本漫画（绕过 UI）
+    # 直接使用 option 下载所有整本漫画
     for album_id in album_id_set:
         print(f'正在下载本子：{album_id}')
         option.download_album(album_id)
@@ -129,9 +138,6 @@ def log_before_raise():
         return path
 
     def exception_listener(e: JmcomicException):
-        """
-        异常监听器，实现了在 GitHub Actions 下，把请求错误的信息下载到文件，方便调试和通知使用者
-        """
         # 决定要写入的文件路径
         path = decide_filepath(e)
 
