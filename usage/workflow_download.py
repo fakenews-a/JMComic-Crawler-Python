@@ -57,17 +57,21 @@ def main():
     # 获取配置手册
     option = get_option()
 
-    # 直接使用 option 下载所有整本漫画
+    # 下载所有整本漫画，每下载完一本立即合并成PDF
     for album_id in album_id_set:
         print(f'正在下载本子：{album_id}')
         option.download_album(album_id)
+        # 手动触发 after_album 事件，执行合并插件
+        option.call_all_plugin('after_album')
 
     # 下载所有单独章节
     for photo_id in photo_id_set:
         print(f'正在下载章节：{photo_id}')
         option.download_photo(photo_id)
+        # 手动触发 after_photo 事件（如果有合并需求）
+        option.call_all_plugin('after_photo')
 
-    # 执行收尾插件（包括合并PDF）
+    # 最后再调用 after_download 收尾
     option.call_all_plugin('after_download')
 
 
@@ -99,9 +103,7 @@ def cover_option_config(option: JmOption):
     if suffix is not None:
         option.download.image.suffix = fix_suffix(suffix)
 
-    # ========== 关键修改：默认启用PDF合并 ==========
-    # 原代码：pdf_option = env('PDF_OPTION', None)
-    # 现在默认值改为 '是 | 本子维度合并pdf'，即整本合并
+    # 默认启用PDF合并（整本合并）
     pdf_option = env('PDF_OPTION', '是 | 本子维度合并pdf')
     if pdf_option and pdf_option != '否':
         call_when = 'after_album' if pdf_option == '是 | 本子维度合并pdf' else 'after_photo'
@@ -109,8 +111,8 @@ def cover_option_config(option: JmOption):
             'plugin': Img2pdfPlugin.plugin_key,
             'kwargs': {
                 'pdf_dir': option.dir_rule.base_dir + '/pdf/',
-                'filename_rule': call_when[6].upper() + 'id',
-                'delete_original_file': True,
+                'filename_rule': call_when[6].upper() + 'id',  # Aid 或 Pid
+                'delete_original_file': True,  # 合并后删除图片，只保留PDF
             }
         }]
         option.plugins[call_when] = plugin
@@ -141,10 +143,8 @@ def log_before_raise():
         return path
 
     def exception_listener(e: JmcomicException):
-        # 决定要写入的文件路径
         path = decide_filepath(e)
 
-        # 准备内容
         content = [
             str(type(e)),
             e.msg,
@@ -152,12 +152,10 @@ def log_before_raise():
         for k, v in e.context.items():
             content.append(f'{k}: {v}')
 
-        # resp.text
         resp = e.context.get(ExceptionTool.CONTEXT_KEY_RESP, None)
         if resp:
             content.append(f'响应文本: {resp.text}')
 
-        # 写文件
         write_text(path, '\n'.join(content))
 
     JmModuleConfig.register_exception_listener(JmcomicException, exception_listener)
