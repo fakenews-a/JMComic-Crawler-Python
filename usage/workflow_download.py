@@ -67,7 +67,7 @@ def main():
         print(f'正在下载章节：{photo_id}')
         option.download_photo(photo_id)
 
-    # 执行收尾插件（如合并PDF）
+    # 执行收尾插件（包括合并PDF）
     option.call_all_plugin('after_download')
 
 
@@ -99,7 +99,10 @@ def cover_option_config(option: JmOption):
     if suffix is not None:
         option.download.image.suffix = fix_suffix(suffix)
 
-    pdf_option = env('PDF_OPTION', None)
+    # ========== 关键修改：默认启用PDF合并 ==========
+    # 原代码：pdf_option = env('PDF_OPTION', None)
+    # 现在默认值改为 '是 | 本子维度合并pdf'，即整本合并
+    pdf_option = env('PDF_OPTION', '是 | 本子维度合并pdf')
     if pdf_option and pdf_option != '否':
         call_when = 'after_album' if pdf_option == '是 | 本子维度合并pdf' else 'after_photo'
         plugin = [{
